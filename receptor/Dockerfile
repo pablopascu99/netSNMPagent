@@ -1,10 +1,13 @@
 FROM python
 
-WORKDIR /receptor
+WORKDIR /app
 
-COPY ./receptor/requirements.txt .
+COPY requirements.txt .
+
 RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "-u", "./receptor/snmpGet.py"]
+EXPOSE 162
+
+CMD [ "python", "-u", "snmpGet.py"]

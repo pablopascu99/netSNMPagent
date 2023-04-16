@@ -1,2 +1,0 @@
-snmptrap -v 2c -c public 172.16.239.20 '' SNMPv2-MIB::coldStart
-snmptrap -v 2c -c public 172.16.239.20 '' IF-MIB::linkDown IF-MIB::ifIndex.1 i 1

@@ -9,7 +9,9 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
     print('cbFun is called')
     while wholeMsg:
         print('loop...')
+        print(wholeMsg)
         msgVer = int(api.decodeMessageVersion(wholeMsg))
+        print('Version: %s' % (msgVer))
         if msgVer in api.protoModules:
             pMod = api.protoModules[msgVer]
         else:
@@ -17,7 +19,9 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
             return
         reqMsg, wholeMsg = decoder.decode(wholeMsg, asn1Spec=pMod.Message(),)
         print('Notification message from %s:%s: ' % (transportDomain, transportAddress))
+        print('ReqMsg: %s' % (reqMsg))
         reqPDU = pMod.apiMessage.getPDU(reqMsg)
+        print('ReqPDU: %s' % (reqPDU))
         if reqPDU.isSameTypeWith(pMod.TrapPDU()):
             if msgVer == api.protoVersion1:
                 enterprise = pMod.apiTrapPDU.getEnterprise(reqPDU).prettyPrint()
@@ -33,11 +37,11 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
                 varBinds = pMod.apiTrapPDU.getVarBinds(reqPDU)
                 varBindsList = []
                 for oid, val in varBinds:
-                    oid = oid.prettyPrint()
+#                    oid = oid.prettyPrint()
                     print('OID: %s' % (oid))
-                    value = val.prettyPrint()
-                    print('Value: %s' % (value))
-                    varBindsTuple = (oid,value)
+#                    value = val.prettyPrint()
+                    print('Value: %s' % (val))
+                    varBindsTuple = (oid,val)
                     varBindsList.append(varBindsTuple)
                 # Assemble MIB browser
                 mibBuilder = builder.MibBuilder()
@@ -59,16 +63,25 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
                     resolvedVarBinds.append(resolvedVarBind)
                     print(resolvedVarBind)
             else:
-                varBinds = pMod.apiPDU.getVarBindList(reqPDU)
-                varBindsList = []
+                mibBuilder = builder.MibBuilder()
+
+                # SI NO FUNCIONA DESCOMENTAR. AQUI SE VE LA RUTA QUE COGE LOS MIBs
+                # pysmi_debug.setLogger(pysmi_debug.Debug('compiler'))
+
+                compiler.addMibCompiler(mibBuilder)
+                mibViewController = view.MibViewController(mibBuilder)
+
+                # Pre-load MIB modules we expect to work with
+                mibBuilder.loadModules('IF-MIB')
+                print("TRADUCCION.............")
+                # ent = rfc1902.ObjectType(rfc1902.ObjectIdentity(enterprise)).resolveWithMib(mibViewController)
+                # print(ent)
+                resolvedVarBinds = []
+                varBinds = pMod.apiTrapPDU.getVarBinds(reqPDU)
                 for oid, val in varBinds:
-                    oid = oid.prettyPrint()
-                    print('OID: %s' % (oid))
-                    value = val.prettyPrint()
-                    print('Value: %s' % (value))
-                    varBindsTuple = (oid,value)
-                    varBindsList.append(varBindsTuple)
-                print("algo")
+                    resolvedVarBind = rfc1902.ObjectType(rfc1902.ObjectIdentity(oid), val).resolveWithMib(mibViewController)
+                    resolvedVarBinds.append(resolvedVarBind)
+                    print(resolvedVarBind)
     return wholeMsg
 
 transportDispatcher = AsynsockDispatcher()
