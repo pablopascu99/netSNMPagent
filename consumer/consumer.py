@@ -1,15 +1,39 @@
+from confluent_kafka import Consumer
 from pysnmp.carrier.asynsock.dispatch import AsynsockDispatcher
 from pysnmp.carrier.asynsock.dgram import udp, udp6
 from pyasn1.codec.ber import decoder
 from pysnmp.proto import api
 from pysnmp.smi import builder, view, compiler, rfc1902
+from pysmi import debug as pysmi_debug
+import json
+import psycopg2
 
+# c = Consumer({'bootstrap.servers':'kafka1:19091','group.id':'counting-group','auto.offset.reset':'earliest'})
+# print('Kafka Consumer has been initiated...')
 
+#print('Available topics to consume: ', c.list_topics().topics)
+# c.subscribe(['user-tracker'])
+
+#establishing the connection
+# conn = psycopg2.connect(database="postgres", user='postgres', password='postgres', host='postgres', port= '5432')
+
+#Creating a cursor object using the cursor() method
+# cursor = conn.cursor()
+
+# sql= '''CREATE TABLE IF NOT EXISTS users (
+#     user_id INTEGER PRIMARY KEY,
+#     user_name VARCHAR (255),
+#     user_address VARCHAR (255),
+#     platform VARCHAR (255)
+# )'''
+
+# cursor.execute(sql)
+# conn.commit()
 def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
     print('cbFun is called')
     while wholeMsg:
         print('loop...')
-        print(wholeMsg)
+        # print(wholeMsg)
         msgVer = int(api.decodeMessageVersion(wholeMsg))
         print('Version: %s' % (msgVer))
         if msgVer in api.protoModules:
@@ -73,7 +97,7 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
 
                 # Pre-load MIB modules we expect to work with
                 mibBuilder.loadModules('IF-MIB')
-                print("TRADUCCION.............")
+                print("TRADUCCION2.............")
                 # ent = rfc1902.ObjectType(rfc1902.ObjectIdentity(enterprise)).resolveWithMib(mibViewController)
                 # print(ent)
                 resolvedVarBinds = []
@@ -84,6 +108,7 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
                     print(resolvedVarBind)
     return wholeMsg
 
+# while True:
 transportDispatcher = AsynsockDispatcher()
 
 transportDispatcher.registerRecvCbFun(cbFun)
@@ -106,11 +131,21 @@ try:
     transportDispatcher.runDispatcher()
 except:
     transportDispatcher.closeDispatcher()
-    raise
+    raise    
+# msg=c.poll(1.0) #timeout
+# if msg is None:
+#     continue
+# if msg.error():
+#     print('Error: {}'.format(msg.error()))
+    # continue
+#Setting auto commit false
+# conn.autocommit = True
 
-##############################################################################################################################################################
-#                                                                                                                                                            #
-#  Ejemplo para prueba con snmptrapGen:                                                                                                                      #
-#  snmptrapGen -v:1 -c:public -r:127.0.0.1 -to:1.3.6.1.6.3.1.1.4.1.0 -del:'' -eo:1.3.6.1.4.1.8072.3.2.10 -vid:1.3.6.1.6.3.1.1.5.1 -vtp:str -val:"1" -p:163   #
-#                                                                                                                                                            #
-##############################################################################################################################################################
+#Creating a cursor object using the cursor() method
+# cursor = conn.cursor()
+# data=json.loads(msg.value().decode('utf-8'))
+# cursor.execute(""" INSERT INTO users (user_id, user_name, user_address, platform) VALUES (%s,%s,%s,%s)""",
+#     (data['user_id'],
+#      data['user_name'],
+#      data['user_address'],
+#      data['platform']))
