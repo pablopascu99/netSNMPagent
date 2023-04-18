@@ -3,10 +3,13 @@ from pysnmp.carrier.asynsock.dgram import udp, udp6
 from pyasn1.codec.ber import decoder
 from pysnmp.proto import api
 from pysnmp.smi import builder, view, compiler, rfc1902
+import json
+from datetime import datetime, timedelta
 # from pysmi import debug as pysmi_debug
 
 def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
     print('cbFun is called')
+    global hour
     while wholeMsg:
         print('loop...')
         # print(wholeMsg)
@@ -19,11 +22,14 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
             return
         reqMsg, wholeMsg = decoder.decode(wholeMsg, asn1Spec=pMod.Message(),)
         print('Notification message from %s:%s: ' % (transportDomain, transportAddress))
+        trapInfo = []
+        trapInfo.append(transportAddress[0])
         print('ReqMsg: %s' % (reqMsg))
         reqPDU = pMod.apiMessage.getPDU(reqMsg)
         print('ReqPDU: %s' % (reqPDU))
         if reqPDU.isSameTypeWith(pMod.TrapPDU()):
             if msgVer == api.protoVersion1:
+                trapInfo.append("1")
                 enterprise = pMod.apiTrapPDU.getEnterprise(reqPDU).prettyPrint()
                 print('Enterprise: %s' % (enterprise))
                 agentAdress = pMod.apiTrapPDU.getAgentAddr(reqPDU).prettyPrint()
@@ -63,6 +69,7 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
                     resolvedVarBinds.append(resolvedVarBind)
                     print(resolvedVarBind)
             else:
+                trapInfo.append("2")
                 mibBuilder = builder.MibBuilder()
 
                 # SI NO FUNCIONA DESCOMENTAR. AQUI SE VE LA RUTA QUE COGE LOS MIBs
@@ -78,12 +85,45 @@ def cbFun(transportDispatcher, transportDomain, transportAddress, wholeMsg):
                 # print(ent)
                 resolvedVarBinds = []
                 varBinds = pMod.apiTrapPDU.getVarBinds(reqPDU)
+                cont=0
                 for oid, val in varBinds:
                     resolvedVarBind = rfc1902.ObjectType(rfc1902.ObjectIdentity(oid), val).resolveWithMib(mibViewController)
-                    resolvedVarBinds.append(resolvedVarBind)
-                    print(resolvedVarBind)
+                    if cont==0:
+                        if resolvedVarBind.prettyPrint() == "SNMPv2-MIB::snmpTrapOID.0 = SNMPv2-MIB::coldStart":
+                            trapInfo.append("SNMPv2-MIB")
+                            trapInfo.append("coldStart")
+                            print(resolvedVarBind)
+                        elif resolvedVarBind.prettyPrint() == "SNMPv2-MIB::snmpTrapOID.0 = SNMPv2-MIB::warmStart":
+                            trapInfo.append("SNMPv2-MIB")
+                            trapInfo.append("warmStart")
+                            print(resolvedVarBind)
+                        elif resolvedVarBind.prettyPrint() == "SNMPv2-MIB::snmpTrapOID.0 = IF-MIB::linkDown":
+                            trapInfo.append("IF-MIB")
+                            trapInfo.append("linkDown")
+                            print(resolvedVarBind)
+                        elif resolvedVarBind.prettyPrint() == "SNMPv2-MIB::snmpTrapOID.0 = IF-MIB::linkUp":
+                            trapInfo.append("IF-MIB")
+                            trapInfo.append("linkUp")
+                            print(resolvedVarBind)
+                    else:
+                        resolvedVarBinds.append(resolvedVarBind.prettyPrint())
+                        print(resolvedVarBind)
+                    cont = cont+1
+                trapInfo.append(resolvedVarBinds)
+                dateTime = datetime.now()+ timedelta(hours=hour)
+                dateTimeStr = dateTime.strftime('%Y-%m-%d %H:%M:%S')
+                trapInfo.append(dateTimeStr)
+                hour = hour+1
+                jsonTrap = {}
+                nombresClaves = ["IPSource", "Version", "MIB", "Type", "AdditionalInfo", "Datetime"]
+                for i in range(len(trapInfo)):
+                    jsonTrap[nombresClaves[i]] = trapInfo[i]
+
+                jsonTrap = json.dumps(jsonTrap, indent=5)
+                print(jsonTrap)
     return wholeMsg
 
+hour = 0
 # while True:
 transportDispatcher = AsynsockDispatcher()
 
