@@ -1,4 +1,4 @@
-# confluent_kafka==2.0.2
+confluent_kafka==2.0.2
 pyasn1==0.4.8
 pysmi==0.3.4
 pysnmp==4.4.12
